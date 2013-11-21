@@ -1,0 +1,59 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+  config.vm.hostname = "hoge"
+  config.vm.box = "ubuntu120403"
+  config.vm.network :private_network, ip: "33.33.33.10"
+  config.vm.network :forwarded_port, guest: 3000, host: 9876
+
+  config.berkshelf.enabled = true
+
+  config.vm.provision :chef_solo do |chef|
+    chef.json = {
+      rbenv: {
+        user_installs: [{
+          user: "vagrant",
+          rubies: ["1.9.3-p448"],
+          global: "1.9.3-p448",
+          gems: {
+            "1.9.3-p448" => [
+              {name: "bundler"}
+            ]
+          }
+        }]
+      },
+
+      postgresql: {
+        password: {
+          postgres: "fuga"
+        },
+
+        dir: "/var/lib/postgresql/9.2/main",
+        version: "9.2",
+        enable_pgdg_apt: true,
+        server: {
+          packages: [
+            "postgresql-9.2"
+          ]
+        },
+
+        pg_hba: [
+          { type: "host", db: "all", user: "all", addr: "127.0.0.1/32", method: "trust" }
+        ],
+      }
+    }
+
+    chef.run_list = [
+        "apt",
+        "git",
+        "ruby_build",
+        # See http://stackoverflow.com/questions/18616673/rbenv-vagrant-global-ruby-version-unchanged
+        "rbenv::user",
+        "postgresql::apt_pgdg_postgresql",
+        "postgresql::server",
+        "database::postgresql",
+        "hoge::postgresql"     # 自作のレシピ
+    ]
+  end
+end
